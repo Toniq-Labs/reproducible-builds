@@ -1,0 +1,17 @@
+{
+  "Fileshare": {
+    "ic": "yw67o-4aaaa-aaaal-abwga-cai"
+  },
+  "Heartbeat": {
+    "ic": "qnkcz-4aaaa-aaaal-abixq-cai"
+  },
+  "Snapshot": {
+    "ic": "n33ar-2qaaa-aaaal-abskq-cai"
+  },
+  "BlockDevice": {
+    "ic": "763a7-siaaa-aaaal-abwxq-cai"
+  },
+  "MediaMgr": {
+    "ic": "3po6u-wiaaa-aaaal-abwpq-cai"
+  }
+}
