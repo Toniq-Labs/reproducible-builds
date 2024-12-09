@@ -1,23 +1,7 @@
 {
   "canisters": {
-    "Fileshare": {
-      "main": "src/fs/fileshare.mo",
-      "type": "motoko"
-    },
-    "TestGen1": {
-      "main": "src/gen1/src/pokedbotsAssets/poked.mo",
-      "type": "motoko"
-    },
-    "PokedEXT": {
-      "main": "src/PokedEXT/poked-ext.mo",
-      "type": "motoko"
-    },
     "pokedmutantbots": {
       "main": "src/gen2/poked.mo",
-      "type": "motoko"
-    },
-    "Events": {
-      "main": "src/events/events.mo",
       "type": "motoko"
     }
   },
