@@ -1,0 +1,231 @@
+// Version: 1.0.0
+type AID__1 = AccountId;
+type AccountId = Text;
+type AccountId__3 = AccountId;
+type AccountId__4 = AccountId;
+type AccountsPayable = [(AccountId__3, Nat64)];
+type AssocList<K, V> = List<(K, V)>;
+type AssocList__1<K, V> = AssocList<K, V>;
+type Branch<K, V> = {left : Trie<K, V>; right : Trie<K, V>; size : Nat};
+type Bytes = Nat;
+type Color = {#B; #R};
+type DState = {#Hidden; #Valid};
+type Dentry = (Index__1, Index__1, Handle, DState);
+type Deque<T> = (List__2<T>, List__2<T>);
+type Directory =
+  {
+    contents : [Dentry];
+    group : [Principal];
+    inode : Index__1;
+    mode : Mode;
+    name : Handle;
+    owner : Principal;
+    parent : Index__1
+  };
+type Disbursement = (Index__5, AccountId__3, Blob, Nat64);
+type Event = {#application; #auction; #burn; #mint; #sale; #transfer};
+type Fee = Nat64;
+type Fee__1 = Fee;
+type Fee__2 = {amount : Nat64; to : AccountId__4; txhash : TxHash};
+type Fees =
+  {
+    var depreciating : Bool;
+    var init : Bool;
+    var max_fee : Fee;
+    var max_hodl : Time__2;
+    var min_fee : Fee;
+    var min_hodl : Time__2;
+    var royalty : Fee
+  };
+type Fees__1 = Fees;
+type File =
+  {
+    ftype : MimeType;
+    group : [Principal];
+    mode : Mode;
+    name : Handle;
+    owner : Principal;
+    pointer : {callback : StreamingCallback; token : StreamingToken};
+    size : Bytes;
+    timestamp : Time
+  };
+type FireSale =
+  {
+    var buyers : Tree__3<MultiLock>;
+    var delist : Bool;
+    var status : {#busy; #idle};
+    timeouts : Nat
+  };
+type FungibleToken = {#icp : Principal};
+type Handle = Text;
+type Hash = Nat32;
+type Index = Nat__1;
+type Index__1 = Index;
+type Index__5 = Index;
+type Index__6 = Index;
+type Inode = {#Directory : Directory; #File : File; #Reserved : Principal};
+type Key<K> = {hash : Hash; key : K};
+type Leaf<K, V> = {keyvals : AssocList__1<Key<K>, V>; size : Nat};
+type Ledger = {#cycles; #nft : NonFungibleToken; #token : FungibleToken};
+type LedgerTxn =
+  {
+    amount : ?Nat64;
+    destination : ?AccountId__4;
+    event : Event;
+    fees : ?[Fee__2];
+    indices : ?[Nat];
+    ledger : Ledger;
+    memo : ?Blob;
+    source : ?AccountId__4;
+    subevent : SubEvent;
+    time : Int;
+    txhash : TxHash;
+    txref : ?TxHash
+  };
+type List<T> = ?(T, List<T>);
+type List__2<T> = List<T>;
+type Listing = {#delisted : Time__1; #listed : ListingDetails};
+type ListingDetails =
+  {
+    allowance : Fee__1;
+    var locked : ?Time__3;
+    price : Nat64;
+    royalty : Fee__1;
+    seller : Principal
+  };
+type Lock = {#firesale : FireSale; #locked : LockDetails; #unlocked : Nat};
+type LockDetails =
+  {
+    buyer : AccountId__3;
+    fees : [(AccountId__3, Nat64)];
+    var status : {#busy; #idle};
+    subaccount : SubAccount__3;
+    timeouts : Nat
+  };
+type Lock__1 = {#locked; #unlocked};
+type Metadata__2 = Tree__1<Value>;
+type Metadata__3 = Metadata__2;
+type MimeType = Text;
+type Mode = (Priv, Priv);
+type MultiLock = (AccountId__3, SubAccount__3, AccountsPayable);
+type Nat__1 = Nat;
+type NonFungibleToken = {#ext : Principal};
+type Path = Text;
+type Path__4 = Path;
+type Principal__1 = Principal;
+type Principal__3 = Principal__1;
+type Priv = {#NO; #RO; #RW; #WO};
+type Refund = (AccountId__3, SubAccount__3);
+type Stream =
+  {
+    ftype : Text;
+    name : Text;
+    pointer : {callback : StreamingCallback; token : StreamingToken}
+  };
+type StreamingCallback =
+  shared query StreamingToken -> async StreamingResponse;
+type StreamingResponse = {body : Blob; token : ?StreamingToken};
+type StreamingToken =
+  {
+    key : Text;
+    nested : [(StreamingCallback, StreamingToken)];
+    start : (Nat, Nat);
+    stop : (Nat, Nat)
+  };
+type SubAccount = [Nat8];
+type SubAccount__3 = SubAccount;
+type SubEvent =
+  {#bid; #disbursed; #listed; #locked; #none; #refunded; #settled; #unlocked};
+type Text__1 = Text;
+type Text__3 = Text__1;
+type Time = Int;
+type Time__1 = Time;
+type Time__2 = Time__1;
+type Time__3 = Time__1;
+type Token =
+  {
+    var burned : Bool;
+    var lock : Lock__1;
+    var metadata : Metadata__3;
+    var owner : AID__1;
+    var path : Path__4
+  };
+type TokenId = Text;
+type TokenId__1 = TokenId;
+type Transaction__2 =
+  {
+    buyer : AccountId__3;
+    price : Nat64;
+    seller : Principal;
+    time : Time__3;
+    token : TokenId__1
+  };
+type Transactions = {var elems : [var Transaction__2]; var size : Nat};
+type Tree<K, V> = {#leaf; #node : (Color, Tree<K, V>, (K, ?V), Tree<K, V>)};
+type Tree__1<T> = Tree<Text__3, T>;
+type Tree__3<T> = Tree<Principal__3, T>;
+type Trie<K, V> = {#branch : Branch<K, V>; #empty; #leaf : Leaf<K, V>};
+type TxHash = Text;
+type Value = {#blob : Blob; #none; #stream : Stream; #url : Text};
+actor {
+  stable var _admins :
+    {
+      #branch : Branch<Principal__3, ()>;
+      #empty;
+      #leaf : Leaf<Principal__3, ()>
+    };
+  stable var _affiliates :
+    {#branch : Branch<Text__3, ()>; #empty; #leaf : Leaf<Text__3, ()>};
+  stable var _attributes : [var ?Blob];
+  stable var _coll_queries :
+    {#branch : Branch<Text__3, ()>; #empty; #leaf : Leaf<Text__3, ()>};
+  stable var _collaborators :
+    {
+      #branch : Branch<Principal__3, ()>;
+      #empty;
+      #leaf : Leaf<Principal__3, ()>
+    };
+  stable var _fileshare : Principal;
+  stable var _hb_enable : Bool;
+  stable var _heartbeat : Principal;
+  stable var _init : Bool;
+  stable var _lastUpdate : Int;
+  stable var _lastbeat : Text;
+  stable var _ledger_txns : [LedgerTxn];
+  stable var _market :
+    {
+      var disbursements : Deque<Disbursement>;
+      var escrow : Principal;
+      var fees : Fees__1;
+      var fs_threshold : Nat;
+      var genesis : Time__3;
+      var init : Bool;
+      var listings : [var Listing];
+      var locks : [var Lock];
+      var next_sa : Nat;
+      var range : Nat;
+      var refunds : Deque<Refund>;
+      var royalty : AccountId__3;
+      var transactions : Transactions
+    };
+  stable var _minter : Principal;
+  stable var _mount :
+    {var count : Nat; var inodes : [var Inode]; var root : Principal};
+  stable var _owners :
+    {
+      #leaf;
+      #node :
+        (Color, Tree<Text__3, [Index__6]>, (Text__3, ?[Index__6]),
+         Tree<Text__3, [Index__6]>)
+    };
+  stable var _path : Text;
+  stable var _priv_queries :
+    {#branch : Branch<Text__3, ()>; #empty; #leaf : Leaf<Text__3, ()>};
+  stable var _pub_queries :
+    {#branch : Branch<Text__3, ()>; #empty; #leaf : Leaf<Text__3, ()>};
+  stable var _revealed : Bool;
+  stable var _runHeartbeat : Bool;
+  stable var _self : Principal;
+  stable var _tokens :
+    {var burned : Nat; var elems : [var Token]; var size : Nat}
+};

@@ -1,0 +1,273 @@
+type User__1 = 
+ variant {
+   address: AccountIdentifier__2;
+   "principal": principal;
+ };
+type User = 
+ variant {
+   address: AccountIdentifier;
+   "principal": principal;
+ };
+type TransferResponse = 
+ variant {
+   err:
+    variant {
+      CannotNotify: AccountIdentifier;
+      InsufficientBalance;
+      InvalidToken: TokenIdentifier;
+      Other: text;
+      Rejected;
+      Unauthorized: AccountIdentifier;
+    };
+   ok: Balance;
+ };
+type TokenState = 
+ variant {
+   burned;
+   locked;
+   unlocked;
+ };
+type TokenIndex__1 = nat32;
+type TokenIndex = nat32;
+type TokenIdentifier__1 = text;
+type TokenIdentifier = text;
+type Time = int;
+type SubAccount = vec nat8;
+type StableWhitelistEntry = 
+ record {
+   AccountIdentifier;
+   StableCredits;
+ };
+type StableWhitelist = vec StableWhitelistEntry;
+type StableCredits__1 = 
+ record {
+   nat;
+   nat;
+   nat;
+   nat;
+   nat;
+ };
+type StableCredits = 
+ record {
+   nat;
+   nat;
+   nat;
+   nat;
+   nat;
+ };
+type SharedRequest = 
+ record {
+   candidates: vec TokenIdentifier;
+   category: Category;
+   owner: principal;
+   status: RequestStatus;
+   subaccount: opt SubAccount;
+ };
+type ServiceState__1 = 
+ variant {
+   burn;
+   drop;
+   inactive;
+   swap;
+ };
+type ServiceState = 
+ variant {
+   burn;
+   drop;
+   inactive;
+   swap;
+ };
+type Return_2 = 
+ variant {
+   err: Error;
+   ok: BurnInstruction;
+ };
+type Return_1 = 
+ variant {
+   err: Error;
+   ok: vec TokenIdentifier__1;
+ };
+type Return = 
+ variant {
+   err: Error;
+   ok;
+ };
+type RequestStatus = 
+ variant {
+   busy;
+   cancelled;
+   claimed;
+   refunded;
+   settled;
+   submitted;
+ };
+type Memo__1 = blob;
+type Memo = blob;
+type Index__1 = nat;
+type Index = nat;
+type ExtSwap = 
+ service {
+   add_admin: (principal) -> ();
+   admins: () -> (vec principal) query;
+   aid: (principal) -> (AccountIdentifier__1) query;
+   all_candidates: () -> (vec record {
+                                TokenIdentifier__1;
+                                TokenState;
+                              }) query;
+   bulkTokenTransferNotification: (vec TokenIdentifier__1, User__1,
+    Balance__1, Memo__1) -> (opt Balance__1);
+   burn: (BurnRequest) -> (Return_2);
+   burn_registry: () -> (principal) query;
+   burn_tokenid: (nat32) -> (TokenIdentifier__1) query;
+   burned: () -> (nat) query;
+   cancel: (Index) -> (Return);
+   candidates: () -> (vec TokenIdentifier__1) query;
+   claim: (ClaimRequest) -> (Return_1);
+   claim_registry: () -> (principal) query;
+   claimed: (principal) -> (vec record {
+                                  TokenIndex;
+                                  Index;
+                                }) query;
+   configure: (Configuration) -> (Return);
+   credits: (AccountIdentifier__1) -> (opt StableCredits__1) query;
+   del_admin: (principal) -> ();
+   event_by_id: (Index) -> (opt Event) query;
+   holdings: () -> (vec record {
+                          AccountIdentifier__1;
+                          vec TokenIndex;
+                        }) query;
+   init: () -> ();
+   inventory: () -> (vec record {
+                           Category__1;
+                           vec TokenIdentifier__1;
+                         }) query;
+   pulse: () -> () oneway;
+   rand_cache: () -> (nat) query;
+   rand_size: () -> (nat) query;
+   refund: (Index) -> (Return);
+   reset: () -> (Return);
+   reset_test: () -> ();
+   self_aid: () -> (AccountIdentifier__1) query;
+   service_state: () -> (ServiceState, bool) query;
+   set_admins: (vec principal) -> ();
+   start: () -> ();
+   stop: () -> ();
+   tid: (principal, nat32) -> (TokenIdentifier__1) query;
+   user_events: (AccountIdentifier__1) -> (vec Event) query;
+   whitelist: () -> (StableWhitelist) query;
+ };
+type Event = 
+ record {
+   address: AccountIdentifier;
+   burned: vec TokenIdentifier;
+   claimed: vec TokenIdentifier;
+   memo: blob;
+   timestamp: Time;
+ };
+type Error = 
+ variant {
+   ActiveRequest: SharedRequest;
+   AlreadyBurned: TokenIdentifier;
+   AlreadyClaimed;
+   AlreadyRefunded;
+   AlreadySettled;
+   BadCategory: Category;
+   BeingProcessed;
+   ConditionsNotMet;
+   ConfigError: text;
+   DoesNotExist;
+   InsufficientCredits;
+   InsufficientTokens: nat;
+   InvalidToken: TokenIdentifier;
+   NotWhitelisted: AccountIdentifier;
+   NothingToRefund;
+   Other: text;
+   ProcessingRequest;
+   RefundFailed;
+   RequestCancelled;
+   TokenIsLocked: TokenIdentifier;
+   TransferFailed;
+   Unauthorized: AccountIdentifier;
+   UnknownState;
+ };
+type Configuration = 
+ record {
+   burn_registry: opt principal;
+   event: ServiceState__1;
+   inventory: vec record {
+                    Category;
+                    vec TokenIndex__1;
+                  };
+   mapping: vec record {
+                  TokenIndex__1;
+                  TokenIndex__1;
+                };
+   recipients: vec record {
+                     AccountIdentifier;
+                     record {
+                       nat;
+                       nat;
+                       nat;
+                       nat;
+                       nat;
+                     };
+                   };
+   registry: principal;
+   requirements: record {
+                   opt nat;
+                   opt nat;
+                   opt nat;
+                   opt nat;
+                   opt nat;
+                 };
+   snapshot: opt principal;
+ };
+type ClaimRequest = 
+ variant {
+   burn: Index__1;
+   drop: SubAccount;
+ };
+type Category__1 = 
+ variant {
+   cat1;
+   cat2;
+   cat3;
+   cat4;
+   cat5;
+ };
+type Category = 
+ variant {
+   cat1;
+   cat2;
+   cat3;
+   cat4;
+   cat5;
+ };
+type BurnRequest = 
+ record {
+   category: Category;
+   subaccount: opt SubAccount;
+   tokens: vec TokenIdentifier;
+ };
+type BurnInstruction = 
+ record {
+   reference: Index__1;
+   request: BulkTransferRequest;
+   transfer: func (BulkTransferRequest) -> (TransferResponse);
+ };
+type BulkTransferRequest = 
+ record {
+   amount: Balance;
+   from: User;
+   memo: Memo;
+   notify: bool;
+   subaccount: opt SubAccount;
+   to: User;
+   tokens: vec TokenIdentifier;
+ };
+type Balance__1 = nat;
+type Balance = nat;
+type AccountIdentifier__2 = text;
+type AccountIdentifier__1 = text;
+type AccountIdentifier = text;
+service : () -> ExtSwap

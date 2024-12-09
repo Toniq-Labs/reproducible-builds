@@ -1,0 +1,516 @@
+type Value = 
+ variant {
+   "blob": blob;
+   none;
+   stream: Stream;
+   url: text;
+ };
+type User = 
+ variant {
+   address: AccountIdentifier;
+   "principal": principal;
+ };
+type TransferRequest = 
+ record {
+   amount: Balance;
+   from: User;
+   memo: Memo;
+   notify: bool;
+   subaccount: opt SubAccount;
+   to: User;
+   token: TokenIdentifier;
+ };
+type TransferError = 
+ variant {
+   CannotNotify: AccountIdentifier;
+   InsufficientBalance;
+   InvalidToken: TokenIdentifier;
+   Other: text;
+   Rejected;
+   Unauthorized: AccountIdentifier;
+ };
+type Transaction = 
+ record {
+   buyer: AccountId;
+   price: nat64;
+   seller: principal;
+   time: Time;
+   token: TokenId;
+ };
+type TokenIndex = nat32;
+type TokenIdentifier = text;
+type TokenId__1 = text;
+type TokenId = text;
+type TokenAttributes = 
+ record {
+   attributes: opt blob;
+   index: Index;
+ };
+type Time__3 = int;
+type Time__2 = int;
+type Time__1 = int;
+type Time = int;
+type SubAccount__2 = vec nat8;
+type SubAccount__1 = vec nat8;
+type SubAccount = vec nat8;
+type StreamingToken = 
+ record {
+   key: text;
+   nested: vec record {
+                 StreamingCallback;
+                 StreamingToken;
+               };
+   start: record {
+            nat;
+            nat;
+          };
+   stop: record {
+           nat;
+           nat;
+         };
+ };
+type StreamingStrategy = variant {
+                           Callback:
+                            record {
+                              callback: StreamingCallback;
+                              token: StreamingToken;
+                            };};
+type StreamingResponse = 
+ record {
+   body: blob;
+   token: opt StreamingToken;
+ };
+type StreamingCallback = func (StreamingToken) -> (StreamingResponse) query;
+type Stream = 
+ record {
+   ftype: text;
+   name: text;
+   pointer: record {
+              callback: StreamingCallback;
+              token: StreamingToken;
+            };
+ };
+type StableLock = 
+ record {
+   buyer: AccountId__1;
+   fees: vec record {
+               AccountId__1;
+               nat64;
+             };
+   firesale: bool;
+   price: nat64;
+   seller: principal;
+   status: variant {
+             busy;
+             idle;
+           };
+   subaccount: SubAccount__1;
+ };
+type Settlement = 
+ record {
+   buyer: AccountIdentifier;
+   price: nat64;
+   seller: principal;
+   subaccount: SubAccount;
+ };
+type Return_9 = 
+ variant {
+   err: Error__1;
+   ok: Mount;
+ };
+type Return_8 = 
+ variant {
+   err: CommonError;
+   ok: AccountId__1;
+ };
+type Return_7 = 
+ variant {
+   err: CommonError;
+   ok: Metadata;
+ };
+type Return_6 = 
+ variant {
+   err: Error;
+   ok;
+ };
+type Return_5 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Return_4 = 
+ variant {
+   err: CommonError;
+   ok;
+ };
+type Return_3 = 
+ variant {
+   err: CommonError;
+   ok: Balance__1;
+ };
+type Return_2 = 
+ variant {
+   err: CommonError;
+   ok: vec TokenIndex;
+ };
+type Return_12 = 
+ variant {
+   err: CommonError;
+   ok: vec Index;
+ };
+type Return_11 = 
+ variant {
+   err: CommonError;
+   ok: nat;
+ };
+type Return_10 = 
+ variant {
+   err: CommonError;
+   ok: record {
+         AccountId__1;
+         opt Listing;
+       };
+ };
+type Return_1 = 
+ variant {
+   err: CommonError;
+   ok: vec record {
+             TokenIndex;
+             opt Listing;
+             opt blob;
+           };
+ };
+type Return = 
+ variant {
+   err: TransferError;
+   ok: Balance__1;
+ };
+type Result = 
+ variant {
+   err: CommonError;
+   ok: text;
+ };
+type Response = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   status_code: nat16;
+   streaming_strategy: opt StreamingStrategy;
+ };
+type Request = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   method: text;
+   url: text;
+ };
+type Priv = 
+ variant {
+   NO;
+   RO;
+   RW;
+   WO;
+ };
+type Price = nat64;
+type Path__1 = text;
+type Path = text;
+type Mount = vec Inode;
+type Mode = 
+ record {
+   Priv;
+   Priv;
+ };
+type MintRequest = 
+ record {
+   path: Path;
+   receiver: principal;
+ };
+type MimeType = text;
+type Metadata__1 = variant {nonfungible: record {metadata: opt blob;};};
+type Metadata = variant {nonfungible: record {metadata: opt blob;};};
+type Memo = blob;
+type MarketLockRequest = 
+ record {
+   buyer: AccountId__1;
+   fees: vec record {
+               AccountId__1;
+               nat64;
+             };
+   price: nat64;
+   subaccount: SubAccount__1;
+   token: TokenId__1;
+ };
+type MarketListRequest = 
+ record {
+   allowance: Allowance;
+   from_subaccount: opt SubAccount__1;
+   price: opt Price;
+   token: TokenId__1;
+ };
+type Lock = 
+ record {
+   buyer: opt AccountId;
+   fees: opt vec record {
+                   AccountId;
+                   nat64;
+                 };
+   firesale: bool;
+   status: variant {
+             busy;
+             idle;
+           };
+   subaccount: opt SubAccount__2;
+ };
+type Listing__1 = 
+ record {
+   locked: opt Time__1;
+   price: nat64;
+   seller: principal;
+ };
+type Listing = 
+ record {
+   allowance: Fee;
+   locked: opt Time;
+   price: nat64;
+   royalty: Fee;
+   seller: principal;
+ };
+type ListRequest = 
+ record {
+   from_subaccount: opt SubAccount;
+   price: opt nat64;
+   token: TokenIdentifier;
+ };
+type Keyword = 
+ variant {
+   wild;
+   word: text;
+ };
+type Inode = 
+ variant {
+   Directory: Directory;
+   File: File;
+   Reserved: principal;
+ };
+type InitConfig = 
+ record {
+   admins: vec principal;
+   base_fee: nat64;
+   fileshare: principal;
+   firesale_threshold: nat;
+   heartbeat: principal;
+   initial_supply: nat;
+   markets: vec AccountId__1;
+   max_fee: nat64;
+   minter: principal;
+   mountpath: text;
+   royalty_address: AccountId__1;
+ };
+type Index__2 = nat;
+type Index__1 = nat;
+type Index = nat;
+type HeaderField = 
+ record {
+   text;
+   text;
+ };
+type Handle = text;
+type File = 
+ record {
+   ftype: MimeType;
+   group: vec principal;
+   mode: Mode;
+   name: Handle;
+   owner: principal;
+   pointer: record {
+              callback: StreamingCallback;
+              token: StreamingToken;
+            };
+   size: Bytes;
+   timestamp: Time__3;
+ };
+type Fee = nat64;
+type Extension = text;
+type Error__1 = 
+ variant {
+   AlreadyExists: Path__1;
+   Busy;
+   Corrupted;
+   EmptyPath: Path__1;
+   FailedInit: text;
+   FatalFault;
+   IncompatibleInode;
+   Invalid: Path__1;
+   NotDirectory: Path__1;
+   NotFile: Path__1;
+   NotFound: Path__1;
+   NotPermitted;
+   ServiceLimit;
+   TryAgain;
+   Unauthorized;
+ };
+type Error = 
+ variant {
+   Busy;
+   ConfigError: text;
+   DelistingRequested;
+   Fatal: text;
+   FeeTooHigh: nat64;
+   FeeTooSmall: nat64;
+   InsufficientFunds;
+   LockExpired;
+   Locked;
+   NoListing;
+   NotLocked;
+   PriceChange: nat64;
+   UnauthorizedMarket: AccountId;
+ };
+type Disbursement = 
+ record {
+   Index__1;
+   AccountId;
+   blob;
+   nat64;
+ };
+type Directory = 
+ record {
+   contents: vec Dentry;
+   group: vec principal;
+   inode: Index__2;
+   mode: Mode;
+   name: Handle;
+   owner: principal;
+   parent: Index__2;
+ };
+type Dentry = 
+ record {
+   Index__2;
+   Index__2;
+   Handle;
+   DState;
+ };
+type DState = 
+ variant {
+   Hidden;
+   Valid;
+ };
+type CommonError = 
+ variant {
+   InvalidToken: TokenIdentifier;
+   Other: text;
+ };
+type Bytes = nat;
+type Balance__1 = nat;
+type BalanceRequest = 
+ record {
+   token: TokenIdentifier;
+   user: User;
+ };
+type Balance = nat;
+type Attributes = record {firesale: bool;};
+type Allowance = nat64;
+type AccountIdentifier = text;
+type AccountId__1 = text;
+type AccountId = text;
+service : {
+  acceptCycles: () -> ();
+  add_affiliate: (AccountId__1) -> ();
+  admin_query_settlement: (Index) -> (opt StableLock) query;
+  admins: () -> (vec principal) query;
+  affiliates: () -> (vec AccountId__1) query;
+  allSettlements: () -> (vec record {
+                               TokenIndex;
+                               Settlement;
+                             }) query;
+  areTokensLocked: (vec Index) -> (Return_12) query;
+  balance: (BalanceRequest) -> (Return_11) query;
+  bearer: (TokenId__1) -> (Return_8) query;
+  check_listing: () -> (bool);
+  check_metadata: (Index, text) -> (Value) query;
+  details: (TokenId__1) -> (Return_10) query;
+  export_filesystem: () -> (Return_9) query;
+  extensions: () -> (vec Extension) query;
+  fees: () -> (nat64, nat64, nat64) query;
+  fileshareId: () -> (principal) query;
+  getDisbursements: () -> (vec Disbursement) query;
+  getRegistry: () -> (vec record {
+                            TokenIndex;
+                            AccountId__1;
+                          }) query;
+  getTokenId: (Index) -> (TokenId__1) query;
+  getTokens: () -> (vec record {
+                          TokenIndex;
+                          Metadata;
+                        }) query;
+  get_royalty_address: () -> (AccountId__1);
+  heartbeat_disable: () -> ();
+  heartbeat_enable: () -> ();
+  heartbeat_external: () -> ();
+  heartbeat_pending: () -> (vec record {
+                                  text;
+                                  nat;
+                                }) query;
+  heartbeat_start: () -> ();
+  heartbeat_stop: () -> ();
+  http_request: (Request) -> (Response) query;
+  init: (InitConfig) -> (Return_6);
+  isHeartbeatRunning: () -> (bool) query;
+  lastUpdate: () -> (Time__2) query;
+  lastbeat: () -> (text) query;
+  license: (TokenId__1) -> (Result) query;
+  list: (ListRequest) -> (Return_4);
+  listings: () -> (vec record {
+                         TokenIndex;
+                         Listing__1;
+                         Metadata__1;
+                       }) query;
+  lock: (TokenId__1, nat64, AccountId__1, SubAccount__1) -> (Return_8);
+  locks: () -> (vec record {
+                      Index;
+                      Lock;
+                    }) query;
+  market_list: (MarketListRequest) -> (Return_4);
+  market_listings: () ->
+   (vec record {
+          TokenIndex;
+          Listing;
+          Attributes;
+          Metadata__1;
+        }) query;
+  market_lock: (MarketLockRequest) -> (Return_8);
+  metadata: (TokenId__1) -> (Return_7) query;
+  mint_nft: (MintRequest) -> (opt Index);
+  minter: () -> (principal) query;
+  mount: (Path) -> (Return_6);
+  process_disbursements: () -> () oneway;
+  process_refunds: () -> () oneway;
+  report_balance: () -> () oneway;
+  reschedule: () -> (Return_6);
+  set_admins: (vec principal) -> (vec principal);
+  set_fees: (record {
+               nat64;
+               nat64;
+               nat64;
+             }) -> ();
+  set_minter: (principal) -> ();
+  set_revealed: (bool) -> ();
+  set_royalty_address: (AccountId__1) -> (Return_5);
+  settle: (TokenId__1) -> (Return_4);
+  settle_all: () -> () oneway;
+  settlements: () -> (vec record {
+                            TokenIndex;
+                            AccountId__1;
+                            nat64;
+                          }) query;
+  stats: () -> (nat64, nat64, nat64, nat64, nat, nat, nat) query;
+  supply: (TokenId__1) -> (Return_3) query;
+  tokens: (AccountId__1) -> (Return_2) query;
+  tokens_ext: (AccountId__1) -> (Return_1) query;
+  transactions: () -> (vec Transaction) query;
+  transfer: (TransferRequest) -> (Return);
+  update_assets: (record {
+                    nat;
+                    nat;
+                  }, Keyword) -> (opt nat);
+  update_attributes: (vec TokenAttributes) -> ();
+}
