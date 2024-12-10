@@ -1,0 +1,109 @@
+// Version: 1.0.0
+type AccountIdentifier = Text;
+type AccountIdentifier__1 = AccountIdentifier;
+type AccountIdentifier__2 = AccountIdentifier__1;
+type Asset = {name : Text; payload : File; thumbnail : ?File};
+type CapDetailValue =
+  {
+    #False;
+    #Float : Float;
+    #I64 : Int64;
+    #Principal : Principal;
+    #Slice : [Nat8];
+    #Text : Text;
+    #True;
+    #U64 : Nat64;
+    #Vec : [CapDetailValue]
+  };
+type CapIndefiniteEvent =
+  {caller : Principal; details : [(Text, CapDetailValue)]; operation : Text};
+type DayCanisterCyclesData = [var Nat64];
+type DayCanisterHeapMemorySizeData = [var Nat64];
+type DayCanisterMemorySizeData = [var Nat64];
+type DayData =
+  {
+    canisterCyclesData : DayCanisterCyclesData;
+    canisterHeapMemorySizeData : DayCanisterHeapMemorySizeData;
+    canisterMemorySizeData : DayCanisterMemorySizeData;
+    updateCallsData : DayUpdateCallsCountData
+  };
+type DayDataId = Nat32;
+type DayUpdateCallsCountData = [var Nat64];
+type File = {ctype : Text; data : [Blob]};
+type Listing = {locked : ?Time__1; price : Nat64; seller : Principal};
+type LogMessageArray = [LogMessagesData];
+type LogMessagesData = {message : Text; timeNanos : Nanos};
+type LoggerUpgradeData = UpgradeData__1;
+type Metadata =
+  {
+    #fungible :
+      {decimals : Nat8; metadata : ?Blob; name : Text; symbol : Text};
+    #nonfungible : {metadata : ?Blob}
+  };
+type Metadata__1 = Metadata;
+type Nanos = Nat64;
+type Settlement =
+  {
+    buyer : AccountIdentifier__2;
+    price : Nat64;
+    seller : Principal;
+    subaccount : SubAccount__2
+  };
+type SubAccount = [Nat8];
+type SubAccount__1 = SubAccount;
+type SubAccount__2 = SubAccount__1;
+type Time = Int;
+type Time__1 = Time;
+type TokenIdentifier = Text;
+type TokenIdentifier__1 = TokenIdentifier;
+type TokenIndex = Nat32;
+type TokenIndex__1 = TokenIndex;
+type Transaction =
+  {
+    buyer : AccountIdentifier__2;
+    price : Nat64;
+    seller : Principal;
+    time : Time__1;
+    token : TokenIdentifier__1
+  };
+type UpgradeData = {#v1 : {dayData : [UpgradeDataDayTuple]}};
+type UpgradeDataDayTuple = (DayDataId, DayData);
+type UpgradeData__1 =
+  {#v1 : {full : Bool; maxCount : Nat; next : Nat; queue : LogMessageArray}};
+type UpgradeData__2 = UpgradeData;
+actor {
+  stable var _HB_ : Bool;
+  stable var _INIT_ : Bool;
+  stable var _assets : [Asset];
+  stable var _canistergeekLoggerUD : ?LoggerUpgradeData;
+  stable var _canistergeekMonitorUD : ?UpgradeData__2;
+  stable var _capEventsState : [CapIndefiniteEvent];
+  stable var _disbursementsState :
+    [(TokenIndex__1, AccountIdentifier__2, SubAccount__2, Nat64)];
+  stable var _hbsvc : Principal;
+  stable var _log_level : Nat8;
+  stable _max_log_level : Nat8;
+  stable var _minter : Principal;
+  stable var _nextSubAccount : Nat;
+  stable var _nextTokenId : Nat32;
+  stable var _ownersState : [(AccountIdentifier__2, [TokenIndex__1])];
+  stable var _paymentsState : [(Principal, [SubAccount__2])];
+  stable var _pushLog : Bool;
+  stable var _refundsState : [(Principal, [SubAccount__2])];
+  stable var _registryState : [(TokenIndex__1, AccountIdentifier__2)];
+  stable var _runHeartbeat : Bool;
+  stable var _supply : Nat;
+  stable var _tokenListingState : [(TokenIndex__1, Listing)];
+  stable var _tokenMetadataState : [(TokenIndex__1, Metadata__1)];
+  stable var _tokenSettlementState : [(TokenIndex__1, Settlement)];
+  stable var _transactionState : [Transaction];
+  stable var _transactions : [Transaction];
+  stable var _usedPaymentAddressess :
+    [(AccountIdentifier__2, Principal, SubAccount__2)];
+  stable var capRootBucketId : ?Text;
+  stable var historicExportHasRun : Bool;
+  stable level_0 : Nat8;
+  stable level_1 : Nat8;
+  stable level_2 : Nat8;
+  stable level_3 : Nat8
+};

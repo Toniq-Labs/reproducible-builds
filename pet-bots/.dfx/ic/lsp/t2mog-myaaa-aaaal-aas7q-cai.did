@@ -1,0 +1,260 @@
+type AccountIdentifier = text;
+type AccountIdentifier__1 = text;
+type Asset = record { thumbnail : opt File; name : text; payload : File };
+type Balance = nat;
+type BalanceRequest = record { token : TokenIdentifier; user : User };
+type BalanceResponse = variant { ok : Balance; err : CommonError__1 };
+type Balance__1 = nat;
+type Canister = service {
+  acceptCycles : () -> ();
+  addAsset : (Asset) -> (nat);
+  adminKillHeartbeat : () -> ();
+  adminStartHeartbeat : () -> ();
+  allPayments : () -> (vec record { principal; vec SubAccount__1 }) query;
+  allSettlements : () -> (vec record { TokenIndex; Settlement }) query;
+  availableCycles : () -> (nat) query;
+  balance : (BalanceRequest) -> (BalanceResponse) query;
+  bearer : (TokenIdentifier__1) -> (Result_5) query;
+  clearPayments : (principal, vec SubAccount__1) -> ();
+  collectCanisterMetrics : () -> ();
+  cronCapEvents : () -> ();
+  cronDisbursements : () -> ();
+  cronSettlements : () -> ();
+  details : (TokenIdentifier__1) -> (Result_6) query;
+  extensions : () -> (vec Extension) query;
+  getCanisterLog : (opt CanisterLogRequest) -> (opt CanisterLogResponse) query;
+  getCanisterMetrics : (GetMetricsParameters) -> (opt CanisterMetrics) query;
+  getMinter : () -> (principal) query;
+  getRegistry : () -> (vec record { TokenIndex; AccountIdentifier }) query;
+  getTokens : () -> (vec record { TokenIndex; Metadata }) query;
+  get_transaction_count : () -> (nat) query;
+  heartbeat_external : () -> ();
+  heartbeat_pending : () -> (vec record { text; nat }) query;
+  heartbeat_start : () -> ();
+  heartbeat_stop : () -> ();
+  historicExport : () -> (bool);
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  http_request_streaming_callback : (HttpStreamingCallbackToken) -> (
+      HttpStreamingCallbackResponse,
+    ) query;
+  initCap : () -> ();
+  isHeartbeatRunning : () -> (bool) query;
+  lastbeat : () -> (int) query;
+  list : (ListRequest) -> (Result_3);
+  list_bulk : (vec record { TokenIndex; nat64 }) -> (
+      vec record { TokenIndex; nat64 },
+    );
+  listings : () -> (vec record { TokenIndex; Listing; Metadata }) query;
+  lock : (TokenIdentifier__1, nat64, AccountIdentifier, SubAccount__1) -> (
+      Result_5,
+    );
+  metadata : (TokenIdentifier__1) -> (Result_4) query;
+  mintNFT : (MintingRequest) -> (TokenIndex);
+  payments : () -> (opt vec SubAccount__1) query;
+  pulse : () -> () oneway;
+  report_balance : () -> () oneway;
+  reschedule : (opt text) -> (Result_3);
+  setLogLevel : (nat8) -> ();
+  setMinter : (principal) -> ();
+  settle : (TokenIdentifier__1) -> (Result_3);
+  settlements : () -> (
+      vec record { TokenIndex; AccountIdentifier; nat64 },
+    ) query;
+  startHeartbeat : () -> ();
+  stats : () -> (nat64, nat64, nat64, nat64, nat, nat, nat) query;
+  stopHeartbeat : () -> ();
+  streamAsset : (nat, bool, vec nat8) -> ();
+  supply : (TokenIdentifier__1) -> (Result_2) query;
+  tokens : (AccountIdentifier) -> (Result_1) query;
+  tokens_ext : (AccountIdentifier) -> (Result) query;
+  transactions : () -> (vec Transaction) query;
+  transfer : (TransferRequest) -> (TransferResponse);
+  transfer_bulk : (vec record { TokenIndex; AccountIdentifier }) -> (
+      vec record { TokenIndex; AccountIdentifier },
+    );
+  updateAsset : (UpdateRequest) -> (nat);
+  updateThumb : (text, File) -> (opt nat);
+};
+type CanisterCyclesAggregatedData = vec nat64;
+type CanisterHeapMemoryAggregatedData = vec nat64;
+type CanisterLogFeature = variant {
+  filterMessageByContains;
+  filterMessageByRegex;
+};
+type CanisterLogMessages = record {
+  data : vec LogMessagesData;
+  lastAnalyzedMessageTimeNanos : opt Nanos;
+};
+type CanisterLogMessagesInfo = record {
+  features : vec opt CanisterLogFeature;
+  lastTimeNanos : opt Nanos;
+  count : nat32;
+  firstTimeNanos : opt Nanos;
+};
+type CanisterLogRequest = variant {
+  getMessagesInfo;
+  getMessages : GetLogMessagesParameters;
+  getLatestMessages : GetLatestLogMessagesParameters;
+};
+type CanisterLogResponse = variant {
+  messagesInfo : CanisterLogMessagesInfo;
+  messages : CanisterLogMessages;
+};
+type CanisterMemoryAggregatedData = vec nat64;
+type CanisterMetrics = record { data : CanisterMetricsData };
+type CanisterMetricsData = variant {
+  hourly : vec HourlyMetricsData;
+  daily : vec DailyMetricsData;
+};
+type CommonError = variant { InvalidToken : TokenIdentifier; Other : text };
+type CommonError__1 = variant { InvalidToken : TokenIdentifier; Other : text };
+type DailyMetricsData = record {
+  updateCalls : nat64;
+  canisterHeapMemorySize : NumericEntity;
+  canisterCycles : NumericEntity;
+  canisterMemorySize : NumericEntity;
+  timeMillis : int;
+};
+type Extension = text;
+type File = record { data : vec vec nat8; ctype : text };
+type GetLatestLogMessagesParameters = record {
+  upToTimeNanos : opt Nanos;
+  count : nat32;
+  filter : opt GetLogMessagesFilter;
+};
+type GetLogMessagesFilter = record {
+  analyzeCount : nat32;
+  messageRegex : opt text;
+  messageContains : opt text;
+};
+type GetLogMessagesParameters = record {
+  count : nat32;
+  filter : opt GetLogMessagesFilter;
+  fromTimeNanos : opt Nanos;
+};
+type GetMetricsParameters = record {
+  dateToMillis : nat;
+  granularity : MetricsGranularity;
+  dateFromMillis : nat;
+};
+type HeaderField = record { text; text };
+type HourlyMetricsData = record {
+  updateCalls : UpdateCallsAggregatedData;
+  canisterHeapMemorySize : CanisterHeapMemoryAggregatedData;
+  canisterCycles : CanisterCyclesAggregatedData;
+  canisterMemorySize : CanisterMemoryAggregatedData;
+  timeMillis : int;
+};
+type HttpRequest = record {
+  url : text;
+  method : text;
+  body : vec nat8;
+  headers : vec HeaderField;
+};
+type HttpResponse = record {
+  body : vec nat8;
+  headers : vec HeaderField;
+  streaming_strategy : opt HttpStreamingStrategy;
+  status_code : nat16;
+};
+type HttpStreamingCallbackResponse = record {
+  token : opt HttpStreamingCallbackToken;
+  body : vec nat8;
+};
+type HttpStreamingCallbackToken = record {
+  key : text;
+  sha256 : opt vec nat8;
+  index : nat;
+  content_encoding : text;
+};
+type HttpStreamingStrategy = variant {
+  Callback : record {
+    token : HttpStreamingCallbackToken;
+    callback : func (HttpStreamingCallbackToken) -> (
+        HttpStreamingCallbackResponse,
+      ) query;
+  };
+};
+type ListRequest = record {
+  token : TokenIdentifier__1;
+  from_subaccount : opt SubAccount__1;
+  price : opt nat64;
+};
+type Listing = record { locked : opt Time; seller : principal; price : nat64 };
+type LogMessagesData = record { timeNanos : Nanos; message : text };
+type Memo = vec nat8;
+type Metadata = variant {
+  fungible : record {
+    decimals : nat8;
+    metadata : opt vec nat8;
+    name : text;
+    symbol : text;
+  };
+  nonfungible : record { metadata : opt vec nat8 };
+};
+type MetricsGranularity = variant { hourly; daily };
+type MintingRequest = record { to : AccountIdentifier; asset : nat32 };
+type Nanos = nat64;
+type NumericEntity = record {
+  avg : nat64;
+  max : nat64;
+  min : nat64;
+  first : nat64;
+  last : nat64;
+};
+type Result = variant {
+  ok : vec record { TokenIndex; opt Listing; opt vec nat8 };
+  err : CommonError;
+};
+type Result_1 = variant { ok : vec TokenIndex; err : CommonError };
+type Result_2 = variant { ok : Balance__1; err : CommonError };
+type Result_3 = variant { ok; err : CommonError };
+type Result_4 = variant { ok : Metadata; err : CommonError };
+type Result_5 = variant { ok : AccountIdentifier; err : CommonError };
+type Result_6 = variant {
+  ok : record { AccountIdentifier; opt Listing };
+  err : CommonError;
+};
+type Settlement = record {
+  subaccount : SubAccount__1;
+  seller : principal;
+  buyer : AccountIdentifier;
+  price : nat64;
+};
+type SubAccount = vec nat8;
+type SubAccount__1 = vec nat8;
+type Time = int;
+type TokenIdentifier = text;
+type TokenIdentifier__1 = text;
+type TokenIndex = nat32;
+type Transaction = record {
+  token : TokenIdentifier__1;
+  time : Time;
+  seller : principal;
+  buyer : AccountIdentifier;
+  price : nat64;
+};
+type TransferRequest = record {
+  to : User;
+  token : TokenIdentifier;
+  notify : bool;
+  from : User;
+  memo : Memo;
+  subaccount : opt SubAccount;
+  amount : Balance;
+};
+type TransferResponse = variant {
+  ok : Balance;
+  err : variant {
+    CannotNotify : AccountIdentifier__1;
+    InsufficientBalance;
+    InvalidToken : TokenIdentifier;
+    Rejected;
+    Unauthorized : AccountIdentifier__1;
+    Other : text;
+  };
+};
+type UpdateCallsAggregatedData = vec nat64;
+type UpdateRequest = record { assetID : nat; payload : File };
+type User = variant { "principal" : principal; address : AccountIdentifier__1 };
+service : Canister
