@@ -6,11 +6,7 @@ import Canistergeek "mo:canistergeek/canistergeek";
 import Cap "mo:cap/Cap";
 import Cycles "mo:base/ExperimentalCycles";
 import Encoding "mo:encoding/Binary";
-import ExtAllowance "./motoko/ext/Allowance";
-import ExtCommon "./motoko/ext/Common";
 import ExtCore "./motoko/ext/Core";
-import ExtNonFungible "./motoko/ext/NonFungible";
-import HashMap "mo:base/HashMap";
 import Int64 "mo:base/Int64";
 import Iter "mo:base/Iter";
 import List "mo:base/List";
@@ -25,122 +21,24 @@ import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import TrieMap "mo:base/TrieMap";
+import Trie "mo:base/Trie";
+import Debug "mo:base/Debug";
+// import HB "../Motley-Base/src/heartbeat/Types";
 
-actor class Canister() = this {
+import T "types";
 
-  // Types
-  type Time = Time.Time;
-  type AccountIdentifier = ExtCore.AccountIdentifier;
-  type SubAccount = ExtCore.SubAccount;
-  type User = ExtCore.User;
-  type Balance = ExtCore.Balance;
-  type TokenIdentifier = ExtCore.TokenIdentifier;
-  type TokenIndex = ExtCore.TokenIndex;
-  type Extension = ExtCore.Extension;
-  type CommonError = ExtCore.CommonError;
-  type BalanceRequest = ExtCore.BalanceRequest;
-  type BalanceResponse = ExtCore.BalanceResponse;
-  type TransferRequest = ExtCore.TransferRequest;
-  type TransferResponse = ExtCore.TransferResponse;
-  type AllowanceRequest = ExtAllowance.AllowanceRequest;
-  type ApproveRequest = ExtAllowance.ApproveRequest;
-  type Metadata = ExtCommon.Metadata;
-  type NotifyService = ExtCore.NotifyService;
-  type MintingRequest = {
-    to : AccountIdentifier;
-    asset : Nat32;
-  };
+shared ({ caller = _installer }) actor class PixelCollection() = this {
 
-  //Marketplace
-  type Transaction = {
-    token : TokenIdentifier;
-    seller : Principal;
-    price : Nat64;
-    buyer : AccountIdentifier;
-    time : Time;
-  };
-  type Settlement = {
-    seller : Principal;
-    price : Nat64;
-    subaccount : SubAccount;
-    buyer : AccountIdentifier;
-  };
-  type Listing = {
-    seller : Principal;
-    price : Nat64;
-    locked : ?Time;
-  };
-  type ListRequest = {
-    token : TokenIdentifier;
-    from_subaccount : ?SubAccount;
-    price : ?Nat64;
-  };
-  type AccountBalanceArgs = { account : AccountIdentifier };
-  type ICPTs = { e8s : Nat64 };
-  type SendArgs = {
-    memo : Nat64;
-    amount : ICPTs;
-    fee : ICPTs;
-    from_subaccount : ?SubAccount;
-    to : AccountIdentifier;
-    created_at_time : ?Time;
-  };
-  type File = {
-    ctype : Text; //"image/jpeg"
-    data : [Blob];
-  };
-  type Asset = {
-    name : Text;
-    thumbnail : ?File;
-    payload : File;
-  };
-  type UpdateRequest = {
-    assetID : Nat;
-    payload : File;
-  };
-
-  let LEDGER_CANISTER = actor "ryjl3-tyaaa-aaaaa-aaaba-cai" : actor {
-    send_dfx : shared SendArgs -> async Nat64;
-    account_balance_dfx : shared query AccountBalanceArgs -> async ICPTs;
-  };
-
-  //Cap
-  type CapDetailValue = {
-    #I64 : Int64;
-    #U64 : Nat64;
-    #Vec : [CapDetailValue];
-    #Slice : [Nat8];
-    #Text : Text;
-    #True;
-    #False;
-    #Float : Float;
-    #Principal : Principal;
-  };
-  type CapEvent = {
-    time : Nat64;
-    operation : Text;
-    details : [(Text, CapDetailValue)];
-    caller : Principal;
-  };
-  type CapIndefiniteEvent = {
-    operation : Text;
-    details : [(Text, CapDetailValue)];
-    caller : Principal;
-  };
-
-  private let EXTENSIONS : [Extension] = ["@ext/common", "@ext/nonfungible"];
+  private let EXTENSIONS : [T.Extension] = ["@ext/common", "@ext/nonfungible"];
 
   //State work
-  private stable var _registryState : [(TokenIndex, AccountIdentifier)] = [];
-  private stable var _tokenMetadataState : [(TokenIndex, Metadata)] = [];
-  private stable var _ownersState : [(AccountIdentifier, [TokenIndex])] = [];
-
-  private stable var _hbsvc : Principal = Principal.fromText("aaaaa-aa");
-
-  private stable var _HB_ : Bool = false;
-  private stable var _INIT_ : Bool = false;
+  private stable var _registryState : [(T.TokenIndex, T.AccountIdentifier)] = [];
+  private stable var _tokenMetadataState : [(T.TokenIndex, T.Metadata)] = [];
+  private stable var _ownersState : [(T.AccountIdentifier, [T.TokenIndex])] = [];
 
   //Log State
+  private stable var _HB_ : Bool = false;
+  private stable var _INIT_ : Bool = false;
   private stable var _pushLog : Bool = false;
   private stable var _log_level : Nat8 = 0;
   private stable let _max_log_level : Nat8 = 7;
@@ -150,36 +48,39 @@ actor class Canister() = this {
   private stable let level_3 : Nat8 = 4;
 
   //For marketplace
-  private stable var _tokenListingState : [(TokenIndex, Listing)] = [];
-  private stable var _tokenSettlementState : [(TokenIndex, Settlement)] = [];
-  private stable var _paymentsState : [(Principal, [SubAccount])] = [];
-  private stable var _refundsState : [(Principal, [SubAccount])] = [];
-  private stable var _transactionState : [Transaction] = [];
+  private stable var _tokenListingState : [(T.TokenIndex, T.Listing)] = [];
+  private stable var _tokenSettlementState : [(T.TokenIndex, T.Settlement)] = [];
+  private stable var _paymentsState : [(Principal, [T.SubAccount])] = [];
+  private stable var _refundsState : [(Principal, [T.SubAccount])] = [];
+  private stable var _transactionState : [T.Transaction] = [];
+  private stable var _licenses : Trie.Trie<Text, Text> = Trie.empty<Text, Text>();
+  private stable var _licenseData : Trie.Trie<T.TokenIndex, Text> = Trie.empty<T.TokenIndex, Text>();
 
-  private var _registry : TrieMap.TrieMap<TokenIndex, AccountIdentifier> = TrieMap.fromEntries(_registryState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
-  private var _tokenMetadata : TrieMap.TrieMap<TokenIndex, Metadata> = TrieMap.fromEntries(_tokenMetadataState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
-  private var _owners : TrieMap.TrieMap<AccountIdentifier, [TokenIndex]> = TrieMap.fromEntries(_ownersState.vals(), AID.equal, AID.hash);
+  private var _registry : TrieMap.TrieMap<T.TokenIndex, T.AccountIdentifier> = TrieMap.fromEntries(_registryState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+  private var _tokenMetadata : TrieMap.TrieMap<T.TokenIndex, T.Metadata> = TrieMap.fromEntries(_tokenMetadataState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+  private var _owners : TrieMap.TrieMap<T.AccountIdentifier, [T.TokenIndex]> = TrieMap.fromEntries(_ownersState.vals(), AID.equal, AID.hash);
 
   //For marketplace
-  private var _transactionBuffer = Buffer.Buffer<Transaction>(0);
-  private var _tokenListing : TrieMap.TrieMap<TokenIndex, Listing> = TrieMap.fromEntries(_tokenListingState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
-  private var _tokenSettlement : TrieMap.TrieMap<TokenIndex, Settlement> = TrieMap.fromEntries(_tokenSettlementState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
-  private var _payments : TrieMap.TrieMap<Principal, [SubAccount]> = TrieMap.fromEntries(_paymentsState.vals(), Principal.equal, Principal.hash);
-  private var _refunds : TrieMap.TrieMap<Principal, [SubAccount]> = TrieMap.fromEntries(_refundsState.vals(), Principal.equal, Principal.hash);
-  private var ESCROWDELAY : Time = 2 * 60 * 1_000_000_000;
-  private stable var _usedPaymentAddressess : [(AccountIdentifier, Principal, SubAccount)] = [];
-  private stable var _transactions : [Transaction] = [];
-  private stable var _supply : Balance = 0;
-  private stable var _minter : Principal = Principal.fromText("yna3j-sjqp7-a444w-muwct-udocp-rw7yh-iuofd-ua7jp-hhupo-fv5xl-7ae");
-  private stable var _nextTokenId : TokenIndex = 0;
-  private stable var _assets : [Asset] = [];
+  private var _transactionBuffer = Buffer.Buffer<T.Transaction>(0);
+  private var _tokenListing : TrieMap.TrieMap<T.TokenIndex, T.Listing> = TrieMap.fromEntries(_tokenListingState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+  private var _tokenSettlement : TrieMap.TrieMap<T.TokenIndex, T.Settlement> = TrieMap.fromEntries(_tokenSettlementState.vals(), ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+  private var _payments : TrieMap.TrieMap<Principal, [T.SubAccount]> = TrieMap.fromEntries(_paymentsState.vals(), Principal.equal, Principal.hash);
+  private var _refunds : TrieMap.TrieMap<Principal, [T.SubAccount]> = TrieMap.fromEntries(_refundsState.vals(), Principal.equal, Principal.hash);
+  private var ESCROWDELAY : T.Time = 2 * 60 * 1_000_000_000;
+  private stable var _usedPaymentAddressess : [(T.AccountIdentifier, Principal, T.SubAccount)] = [];
+  private stable var _transactions : [T.Transaction] = [];
+  private stable var _supply : T.Balance = 0;
+  private stable var _minter : Principal = Principal.fromText("aaaaa-aa");
+  private stable var _hbsvc : Principal = Principal.fromText("aaaaa-aa");
+  private stable var _nextTokenId : T.TokenIndex = 0;
+  private stable var _assets : [T.Asset] = [];
   //_assets := [];
 
   //EXTv2 SALE
-  private stable var _disbursementsState : [(TokenIndex, AccountIdentifier, SubAccount, Nat64)] = [];
+  private stable var _disbursementsState : [(T.TokenIndex, T.AccountIdentifier, T.SubAccount, Nat64)] = [];
   private stable var _nextSubAccount : Nat = 0;
-  private var _disbursements : List.List<(TokenIndex, AccountIdentifier, SubAccount, Nat64)> = List.fromArray(_disbursementsState);
-  private var salesFees : [(AccountIdentifier, Nat64)] = [
+  private var _disbursements : List.List<(T.TokenIndex, T.AccountIdentifier, T.SubAccount, Nat64)> = List.fromArray(_disbursementsState);
+  private var salesFees : [(T.AccountIdentifier, Nat64)] = [
     ("07ed96a84229a40439a68054bf8d6ac4e9fb472ea6c01520cb46a68eb2faf6f4", 5000), //Royalty Fee 5% PokedStudio
     ("c7e461041c0c5800a56b64bb7cefc247abc0bbbb99bd46ff71c64e92d9f5c2f9", 1000), //Entrepot Fee 1%
   ];
@@ -187,8 +88,8 @@ actor class Canister() = this {
   //CAP
   private stable var capRootBucketId : ?Text = null;
   let CapService = Cap.Cap(?"lj532-6iaaa-aaaah-qcc7a-cai", capRootBucketId);
-  private stable var _capEventsState : [CapIndefiniteEvent] = [];
-  private var _capEvents : List.List<CapIndefiniteEvent> = List.fromArray(_capEventsState);
+  private stable var _capEventsState : [T.CapIndefiniteEvent] = [];
+  private var _capEvents : List.List<T.CapIndefiniteEvent> = List.fromArray(_capEventsState);
   private stable var _runHeartbeat : Bool = true;
 
   //CanisterGeek
@@ -199,24 +100,6 @@ actor class Canister() = this {
 
   //UpgradeToggle
   private let toggle : Nat8 = 1;
-
-  private var _lastbeat : Int = 0;
-  public shared query func lastbeat() : async Int { _lastbeat };
-
-  public shared ({ caller }) func stopHeartbeat() : async () {};
-  public shared ({ caller }) func startHeartbeat() : async () {};
-
-  public shared ({ caller }) func pulse() : () {
-
-  };
-
-  public shared ({ caller }) func report_balance() : () {
-
-  };
-
-  public shared ({ caller }) func reschedule(hb : ?Text) : async Result.Result<(), CommonError> {
-    return #ok();
-  };
 
   //State functions
   system func preupgrade() {
@@ -281,20 +164,52 @@ actor class Canister() = this {
     };
   };
 
-  //EXTv2 SALE
-  private var _delayHeartbeat : Nat32 = 0;
-  // system func heartbeat() : async () {
-  //   if (Nat32.less(_delayHeartbeat, 8)) {
-  //     _delayHeartbeat += 1;
-  //   } else {
-  //     _delayHeartbeat := 0;
-  //     if (_runHeartbeat == true) {
-  //       await cronDisbursements();
-  //       await cronSettlements();
-  //       await cronCapEvents();
-  //     };
-  //   };
-  // };
+  public shared ({ caller }) func stopHeartbeat() : async () { _HB_ := false };
+  public shared ({ caller }) func startHeartbeat() : async () { _HB_ := true };
+
+  public shared ({ caller }) func init(hb : Text) : async Result.Result<(), T.CommonError> {
+    assert Principal.equal(caller, _installer) and not _INIT_;
+    _minter := _installer;
+    try {
+      _hbsvc := Principal.fromText(hb);
+    } catch (e) {
+      return #err(#Other("Failed to convert text to principal"));
+    };
+
+    if (Option.isNull(capRootBucketId)) {
+      try {
+        capRootBucketId := await CapService.handshake(Principal.toText(Principal.fromActor(this)), 1_000_000_000_000);
+      } catch e {
+        return #err(#Other("Failed to initialize CAP service"));
+      };
+    };
+    _HB_ := true;
+    _INIT_ := true;
+    return #ok();
+  };
+
+  private var _lastbeat : Int = 0;
+  public shared query func lastbeat() : async Int { _lastbeat };
+
+  public shared ({ caller }) func pulse() : () {
+    assert Principal.equal(caller, _hbsvc);
+    _lastbeat := Time.now();
+    if _HB_ {
+      await cronDisbursements();
+      await cronSettlements();
+      await cronCapEvents();
+    };
+  };
+
+  public shared (msg) func heartbeat_start() : async () {
+    assert (msg.caller == Principal.fromText("yna3j-sjqp7-a444w-muwct-udocp-rw7yh-iuofd-ua7jp-hhupo-fv5xl-7ae"));
+    _runHeartbeat := true;
+  };
+
+  public shared (msg) func heartbeat_stop() : async () {
+    assert (msg.caller == Principal.fromText("yna3j-sjqp7-a444w-muwct-udocp-rw7yh-iuofd-ua7jp-hhupo-fv5xl-7ae"));
+    _runHeartbeat := false;
+  };
 
   public shared (msg) func heartbeat_external() : async () {
     if (_runHeartbeat == true) {
@@ -320,13 +235,70 @@ actor class Canister() = this {
     ];
   };
 
+  public shared ({ caller }) func add_license(id : Text, language : Text) : () {
+    assert Principal.equal(caller, _minter);
+    _licenses := Trie.put<Text, Text>(_licenses, { key = id; hash = Text.hash(id) }, Text.equal, language).0;
+  };
+
+  public shared ({ caller }) func map_license(token : T.TokenIndex, license : Text) : () {
+    assert Principal.equal(caller, _minter);
+    _licenseData := Trie.put<T.TokenIndex, Text>(
+      _licenseData,
+      { key = token; hash = token },
+      ExtCore.TokenIndex.equal,
+      license,
+    ).0;
+  };
+
+  public query func license(tokenid : T.TokenIdentifier) : async Result.Result<Text, T.CommonError> {
+    if (ExtCore.TokenIdentifier.isPrincipal(tokenid, Principal.fromActor(this)) == false) {
+      return #err(#InvalidToken(tokenid));
+    };
+    let token = ExtCore.TokenIdentifier.getIndex(tokenid);
+    let license : ?Text = Trie.get<T.TokenIndex, Text>(_licenseData, { key = token; hash = token }, ExtCore.TokenIndex.equal);
+    var name : Text = "none";
+    let _REPLACE_ : Text = "_REPLACE_NAME_";
+    switch (_tokenMetadata.get(token)) {
+      case (null) { return #err(#InvalidToken(tokenid)) };
+      case (?md) {
+        switch (md) {
+          case (#fungible(data)) {
+            return #err(#Other("Token has bad metadata"));
+          };
+          case (#nonfungible(rec)) {
+            switch (rec.metadata) {
+              case (null) { return #err(#Other("Missing metadata")) };
+              case (?id) { name := _assets[Nat32.toNat(_blobToNat32(id))].name };
+            };
+          };
+        };
+      };
+    };
+    switch (license) {
+      case (null) { return #err(#Other("No license available")) };
+      case (?id) {
+        switch (Trie.get<Text, Text>(_licenses, { key = id; hash = Text.hash(id) }, Text.equal)) {
+          case (null) { return #err(#Other("Missing License Data")) };
+          case (?language) {
+            let tailored_license : Text = Text.replace(language, #text(_REPLACE_), name);
+            return #ok(tailored_license);
+          };
+        };
+      };
+    };
+  };
+
+  public query func get_token_identifier(t : T.TokenIndex) : async T.TokenIdentifier {
+    ExtCore.TokenIdentifier.fromPrincipal(Principal.fromActor(this), t);
+  };
+
   public query func get_transaction_count() : async Nat {
     Iter.size(_transactionBuffer.vals());
   };
 
   //Listings
   //EXTv2 SALE
-  func _natToSubAccount(n : Nat) : SubAccount {
+  func _natToSubAccount(n : Nat) : T.SubAccount {
     let n_byte = func(i : Nat) : Nat8 {
       assert (i < 32);
       let shift : Nat = 8 * (32 - 1 - i);
@@ -334,15 +306,15 @@ actor class Canister() = this {
     };
     Array.tabulate<Nat8>(32, n_byte);
   };
-  func _getNextSubAccount() : SubAccount {
+  func _getNextSubAccount() : T.SubAccount {
     var _saOffset = 4294967296;
     _nextSubAccount += 1;
     return _natToSubAccount(_saOffset + _nextSubAccount);
   };
-  func _addDisbursement(d : (TokenIndex, AccountIdentifier, SubAccount, Nat64)) : () {
+  func _addDisbursement(d : (T.TokenIndex, T.AccountIdentifier, T.SubAccount, Nat64)) : () {
     _disbursements := List.push(d, _disbursements);
   };
-  public shared (msg) func lock(tokenid : TokenIdentifier, price : Nat64, address : AccountIdentifier, _subaccountNOTUSED : SubAccount) : async Result.Result<AccountIdentifier, CommonError> {
+  public shared (msg) func lock(tokenid : T.TokenIdentifier, price : Nat64, address : T.AccountIdentifier, _subaccountNOTUSED : T.SubAccount) : async Result.Result<T.AccountIdentifier, T.CommonError> {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "lock");
     if (ExtCore.TokenIdentifier.isPrincipal(tokenid, Principal.fromActor(this)) == false) {
@@ -358,7 +330,7 @@ actor class Canister() = this {
         if (listing.price != price) {
           return #err(#Other("Price has changed!"));
         } else {
-          let paymentAddress : AccountIdentifier = AID.fromPrincipal(Principal.fromActor(this), ?subaccount);
+          let paymentAddress : T.AccountIdentifier = AID.fromPrincipal(Principal.fromActor(this), ?subaccount);
           _tokenListing.put(
             token,
             {
@@ -369,7 +341,7 @@ actor class Canister() = this {
           );
           switch (_tokenSettlement.get(token)) {
             case (?settlement) {
-              let resp : Result.Result<(), CommonError> = await settle(tokenid);
+              let resp : Result.Result<(), T.CommonError> = await settle(tokenid);
               logEvent(level_2, "settle : lock()");
               switch (resp) {
                 case (#ok) {
@@ -400,7 +372,7 @@ actor class Canister() = this {
       };
     };
   };
-  public shared (msg) func settle(tokenid : TokenIdentifier) : async Result.Result<(), CommonError> {
+  public shared (msg) func settle(tokenid : T.TokenIdentifier) : async Result.Result<(), T.CommonError> {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "settle()");
     if (ExtCore.TokenIdentifier.isPrincipal(tokenid, Principal.fromActor(this)) == false) {
@@ -409,7 +381,7 @@ actor class Canister() = this {
     let token = ExtCore.TokenIdentifier.getIndex(tokenid);
     switch (_tokenSettlement.get(token)) {
       case (?settlement) {
-        let response : ICPTs = await LEDGER_CANISTER.account_balance_dfx({
+        let response : T.ICPTs = await T.LEDGER_CANISTER.account_balance_dfx({
           account = AID.fromPrincipal(Principal.fromActor(this), ?settlement.subaccount);
         });
         switch (_tokenSettlement.get(token)) {
@@ -428,11 +400,11 @@ actor class Canister() = this {
                   _capAddSale(token, token_owner, settlement.buyer, settlement.price);
                   _transferTokenToUser(token, settlement.buyer);
                   _transactionBuffer.add({
-                    token : TokenIdentifier = tokenid;
+                    token : T.TokenIdentifier = tokenid;
                     seller = settlement.seller;
                     price = settlement.price;
                     buyer = settlement.buyer;
-                    time : Time = Time.now();
+                    time : T.Time = Time.now();
                   });
                   _tokenListing.delete(token);
                   _tokenSettlement.delete(token);
@@ -457,7 +429,7 @@ actor class Canister() = this {
       case (_) return #err(#Other("Nothing to settle"));
     };
   };
-  public shared (msg) func list(request : ListRequest) : async Result.Result<(), CommonError> {
+  public shared (msg) func list(request : T.ListRequest) : async Result.Result<(), T.CommonError> {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "list()");
     if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
@@ -469,7 +441,7 @@ actor class Canister() = this {
     };
     switch (_tokenSettlement.get(token)) {
       case (?settlement) {
-        let resp : Result.Result<(), CommonError> = await settle(request.token);
+        let resp : Result.Result<(), T.CommonError> = await settle(request.token);
         logEvent(level_2, "settle : list()");
         switch (resp) {
           case (#ok) return #err(#Other("Listing has sold"));
@@ -519,7 +491,7 @@ actor class Canister() = this {
         case (?d) {
           _disbursements := last.1;
           try {
-            var bh = await LEDGER_CANISTER.send_dfx({
+            var bh = await T.LEDGER_CANISTER.send_dfx({
               memo = Encoding.BigEndian.toNat64(Blob.toArray(Principal.toBlob(Principal.fromText(ExtCore.TokenIdentifier.fromPrincipal(Principal.fromActor(this), d.0)))));
               amount = { e8s = d.3 };
               fee = { e8s = 10000 };
@@ -549,8 +521,8 @@ actor class Canister() = this {
   };
 
   //Cap
-  func _capAddTransfer(token : TokenIndex, from : AccountIdentifier, to : AccountIdentifier) : () {
-    let event : CapIndefiniteEvent = {
+  func _capAddTransfer(token : T.TokenIndex, from : T.AccountIdentifier, to : T.AccountIdentifier) : () {
+    let event : T.CapIndefiniteEvent = {
       operation = "transfer";
       details = [
         ("to", #Text(to)),
@@ -562,8 +534,8 @@ actor class Canister() = this {
     };
     _capAdd(event);
   };
-  func _capAddSale(token : TokenIndex, from : AccountIdentifier, to : AccountIdentifier, amount : Nat64) : () {
-    let event : CapIndefiniteEvent = {
+  func _capAddSale(token : T.TokenIndex, from : T.AccountIdentifier, to : T.AccountIdentifier, amount : Nat64) : () {
+    let event : T.CapIndefiniteEvent = {
       operation = "sale";
       details = [
         ("to", #Text(to)),
@@ -578,8 +550,8 @@ actor class Canister() = this {
     };
     _capAdd(event);
   };
-  func _capAddMint(token : TokenIndex, from : AccountIdentifier, to : AccountIdentifier, amount : ?Nat64) : () {
-    let event : CapIndefiniteEvent = switch (amount) {
+  func _capAddMint(token : T.TokenIndex, from : T.AccountIdentifier, to : T.AccountIdentifier, amount : ?Nat64) : () {
+    let event : T.CapIndefiniteEvent = switch (amount) {
       case (?a) {
         {
           operation = "mint";
@@ -610,7 +582,7 @@ actor class Canister() = this {
     };
     _capAdd(event);
   };
-  func _capAdd(event : CapIndefiniteEvent) : () {
+  func _capAdd(event : T.CapIndefiniteEvent) : () {
     _capEvents := List.push(event, _capEvents);
   };
   public shared (msg) func cronCapEvents() : async () {
@@ -635,15 +607,15 @@ actor class Canister() = this {
       };
     };
   };
-  public shared (msg) func initCap() : async () {
-    canistergeekMonitor.collectMetrics();
-    logEvent(level_1, "initCap()");
-    if (Option.isNull(capRootBucketId)) {
-      try {
-        capRootBucketId := await CapService.handshake(Principal.toText(Principal.fromActor(this)), 1_000_000_000_000);
-      } catch e {};
-    };
-  };
+  // public shared(msg) func initCap() : async () {
+  //   canistergeekMonitor.collectMetrics();
+  //   logEvent(level_1, "initCap()");
+  //   if (Option.isNull(capRootBucketId)){
+  //     try {
+  //       capRootBucketId := await CapService.handshake(Principal.toText(Principal.fromActor(this)), 1_000_000_000_000);
+  //     } catch e {};
+  //   };
+  // };
 
   // CanisterGeek - MONITORING & LOGGING
   private let geekPrincipal : Text = "awmdx-onrpv-kzwjt-jggtq-t3idz-sbrq2-72c6r-7ajlg-5txoj-4ifwe-dqe"; // LL
@@ -670,9 +642,9 @@ actor class Canister() = this {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "historicExport()");
     if (historicExportHasRun == false) {
-      var events : [CapEvent] = [];
+      var events : [T.CapEvent] = [];
       for (tx in _transactionBuffer.vals()) {
-        let event : CapEvent = {
+        let event : T.CapEvent = {
           time = Int64.toNat64(Int64.fromInt(tx.time));
           operation = "sale";
           details = [
@@ -695,28 +667,6 @@ actor class Canister() = this {
     };
     historicExportHasRun;
   };
-  public shared (msg) func adminKillHeartbeat() : async () {
-    canistergeekMonitor.collectMetrics();
-    logEvent(level_1, "adminKillHeartbeat");
-    assert (msg.caller == _minter);
-    _runHeartbeat := false;
-  };
-  public shared (msg) func adminStartHeartbeat() : async () {
-    canistergeekMonitor.collectMetrics();
-    logEvent(level_1, "adminStarHeartbeat");
-    assert (msg.caller == _minter);
-    _runHeartbeat := true;
-  };
-
-  public shared (msg) func heartbeat_start() : async () {
-    assert (msg.caller == Principal.fromText("yna3j-sjqp7-a444w-muwct-udocp-rw7yh-iuofd-ua7jp-hhupo-fv5xl-7ae"));
-    _runHeartbeat := true;
-  };
-
-  public shared (msg) func heartbeat_stop() : async () {
-    assert (msg.caller == Principal.fromText("yna3j-sjqp7-a444w-muwct-udocp-rw7yh-iuofd-ua7jp-hhupo-fv5xl-7ae"));
-    _runHeartbeat := false;
-  };
 
   public shared (msg) func setMinter(minter : Principal) : async () {
     canistergeekMonitor.collectMetrics();
@@ -728,8 +678,8 @@ actor class Canister() = this {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "streamAsset");
     assert (msg.caller == _minter);
-    var tassets : [var Asset] = Array.thaw<Asset>(_assets);
-    var asset : Asset = tassets[id];
+    var tassets : [var T.Asset] = Array.thaw<T.Asset>(_assets);
+    var asset : T.Asset = tassets[id];
     if (isThumb) {
       switch (asset.thumbnail) {
         case (?t) {
@@ -757,15 +707,15 @@ actor class Canister() = this {
     tassets[id] := asset;
     _assets := Array.freeze(tassets);
   };
-  public shared (msg) func updateThumb(name : Text, file : File) : async ?Nat {
+  public shared (msg) func updateThumb(name : Text, file : T.File) : async ?Nat {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "updateThumb()");
     assert (msg.caller == _minter);
     var i : Nat = 0;
     for (a in _assets.vals()) {
       if (a.name == name) {
-        var tassets : [var Asset] = Array.thaw<Asset>(_assets);
-        var asset : Asset = tassets[i];
+        var tassets : [var T.Asset] = Array.thaw<T.Asset>(_assets);
+        var asset : T.Asset = tassets[i];
         asset := {
           name = asset.name;
           thumbnail = ?file;
@@ -779,13 +729,13 @@ actor class Canister() = this {
     };
     return null;
   };
-  public shared (msg) func updateAsset(request : UpdateRequest) : async Nat {
+  public shared (msg) func updateAsset(request : T.UpdateRequest) : async Nat {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "updateAsset()");
     assert (msg.caller == _minter);
     var i : Nat = request.assetID;
-    var tassets : [var Asset] = Array.thaw<Asset>(_assets);
-    var asset : Asset = tassets[i];
+    var tassets : [var T.Asset] = Array.thaw<T.Asset>(_assets);
+    var asset : T.Asset = tassets[i];
     asset := {
       name = asset.name;
       thumbnail = asset.thumbnail;
@@ -795,20 +745,22 @@ actor class Canister() = this {
     _assets := Array.freeze(tassets);
     return i;
   };
-  public shared (msg) func addAsset(asset : Asset) : async Nat {
+
+  public shared (msg) func addAsset(asset : T.Asset) : async Nat {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "addAsset()");
     assert (msg.caller == _minter);
     _assets := Array.append(_assets, [asset]);
     _assets.size() - 1;
   };
-  public shared (msg) func mintNFT(request : MintingRequest) : async TokenIndex {
+
+  public shared (msg) func mintNFT(request : T.MintingRequest) : async T.TokenIndex {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "mintNFT()");
     assert (msg.caller == _minter);
     let receiver = request.to;
     let token = _nextTokenId;
-    let md : Metadata = #nonfungible({
+    let md : T.Metadata = #nonfungible({
       metadata = ?_nat32ToBlob(request.asset);
     });
     _tokenMetadata.put(token, md);
@@ -817,6 +769,7 @@ actor class Canister() = this {
     _nextTokenId := _nextTokenId + 1;
     token;
   };
+
   func _nat32ToBlob(n : Nat32) : Blob {
     if (n < 256) {
       return Blob.fromArray([0, 0, 0, Nat8.fromNat(Nat32.toNat(n))]);
@@ -856,7 +809,7 @@ actor class Canister() = this {
     );
   };
 
-  public shared (msg) func transfer(request : TransferRequest) : async TransferResponse {
+  public shared (msg) func transfer(request : T.TransferRequest) : async T.TransferResponse {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "transfer");
     if (request.amount != 1) {
@@ -885,7 +838,7 @@ actor class Canister() = this {
             case (?canisterId) {
               //Do this to avoid atomicity issue
               _removeTokenFromUser(token);
-              let notifier : NotifyService = actor (Principal.toText(canisterId));
+              let notifier : T.NotifyService = actor (Principal.toText(canisterId));
               switch (await notifier.tokenTransferNotification(request.token, request.from, request.amount, request.memo)) {
                 case (?balance) {
                   if (balance == 1) {
@@ -924,10 +877,10 @@ actor class Canister() = this {
   public query func getMinter() : async Principal {
     _minter;
   };
-  public query func extensions() : async [Extension] {
+  public query func extensions() : async [T.Extension] {
     EXTENSIONS;
   };
-  public query func balance(request : BalanceRequest) : async BalanceResponse {
+  public query func balance(request : T.BalanceRequest) : async T.BalanceResponse {
     if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
       return #err(#InvalidToken(request.token));
     };
@@ -946,7 +899,7 @@ actor class Canister() = this {
       };
     };
   };
-  public query func bearer(token : TokenIdentifier) : async Result.Result<AccountIdentifier, CommonError> {
+  public query func bearer(token : T.TokenIdentifier) : async Result.Result<T.AccountIdentifier, T.CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
       return #err(#InvalidToken(token));
     };
@@ -960,30 +913,30 @@ actor class Canister() = this {
       };
     };
   };
-  public query func supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
+  public query func supply(token : T.TokenIdentifier) : async Result.Result<T.Balance, T.CommonError> {
     #ok(_supply);
   };
-  public query func getRegistry() : async [(TokenIndex, AccountIdentifier)] {
+  public query func getRegistry() : async [(T.TokenIndex, T.AccountIdentifier)] {
     Iter.toArray(_registry.entries());
   };
-  public query func getTokens() : async [(TokenIndex, Metadata)] {
-    var resp : [(TokenIndex, Metadata)] = [];
+  public query func getTokens() : async [(T.TokenIndex, T.Metadata)] {
+    var resp : [(T.TokenIndex, T.Metadata)] = [];
     for (e in _tokenMetadata.entries()) {
       resp := Array.append(resp, [(e.0, #nonfungible({ metadata = null }))]);
     };
     resp;
   };
-  public query func tokens(aid : AccountIdentifier) : async Result.Result<[TokenIndex], CommonError> {
+  public query func tokens(aid : T.AccountIdentifier) : async Result.Result<[T.TokenIndex], T.CommonError> {
     switch (_owners.get(aid)) {
       case (?tokens) return #ok(tokens);
       case (_) return #err(#Other("No tokens"));
     };
   };
 
-  public query func tokens_ext(aid : AccountIdentifier) : async Result.Result<[(TokenIndex, ?Listing, ?Blob)], CommonError> {
+  public query func tokens_ext(aid : T.AccountIdentifier) : async Result.Result<[(T.TokenIndex, ?T.Listing, ?Blob)], T.CommonError> {
     switch (_owners.get(aid)) {
       case (?tokens) {
-        var resp : [(TokenIndex, ?Listing, ?Blob)] = [];
+        var resp : [(T.TokenIndex, ?T.Listing, ?Blob)] = [];
         for (a in tokens.vals()) {
           resp := Array.append(resp, [(a, _tokenListing.get(a), null)]);
         };
@@ -992,7 +945,7 @@ actor class Canister() = this {
       case (_) return #err(#Other("No tokens"));
     };
   };
-  public query func metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
+  public query func metadata(token : T.TokenIdentifier) : async Result.Result<T.Metadata, T.CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
       return #err(#InvalidToken(token));
     };
@@ -1006,7 +959,7 @@ actor class Canister() = this {
       };
     };
   };
-  public query func details(token : TokenIdentifier) : async Result.Result<(AccountIdentifier, ?Listing), CommonError> {
+  public query func details(token : T.TokenIdentifier) : async Result.Result<(T.AccountIdentifier, ?T.Listing), T.CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
       return #err(#InvalidToken(token));
     };
@@ -1022,12 +975,12 @@ actor class Canister() = this {
   };
 
   //Listings
-  public query func transactions() : async [Transaction] {
+  public query func transactions() : async [T.Transaction] {
     _transactionBuffer.toArray();
   };
-  public query func settlements() : async [(TokenIndex, AccountIdentifier, Nat64)] {
+  public query func settlements() : async [(T.TokenIndex, T.AccountIdentifier, Nat64)] {
     //Lock to admin?
-    var result : [(TokenIndex, AccountIdentifier, Nat64)] = [];
+    var result : [(T.TokenIndex, T.AccountIdentifier, Nat64)] = [];
     for ((token, listing) in _tokenListing.entries()) {
       if (_isLocked(token)) {
         switch (_tokenSettlement.get(token)) {
@@ -1040,28 +993,28 @@ actor class Canister() = this {
     };
     result;
   };
-  public query (msg) func payments() : async ?[SubAccount] {
+  public query (msg) func payments() : async ?[T.SubAccount] {
     _payments.get(msg.caller);
   };
-  public query func listings() : async [(TokenIndex, Listing, Metadata)] {
-    var results : [(TokenIndex, Listing, Metadata)] = [];
+  public query func listings() : async [(T.TokenIndex, T.Listing, T.Metadata)] {
+    var results : [(T.TokenIndex, T.Listing, T.Metadata)] = [];
     for (a in _tokenListing.entries()) {
       results := Array.append(results, [(a.0, a.1, #nonfungible({ metadata = null }))]);
     };
     results;
   };
-  public query (msg) func allSettlements() : async [(TokenIndex, Settlement)] {
+  public query (msg) func allSettlements() : async [(T.TokenIndex, T.Settlement)] {
     Iter.toArray(_tokenSettlement.entries());
   };
-  public query (msg) func allPayments() : async [(Principal, [SubAccount])] {
+  public query (msg) func allPayments() : async [(Principal, [T.SubAccount])] {
     Iter.toArray(_payments.entries());
   };
-  public shared (msg) func clearPayments(seller : Principal, payments : [SubAccount]) : async () {
+  public shared (msg) func clearPayments(seller : Principal, payments : [T.SubAccount]) : async () {
     canistergeekMonitor.collectMetrics();
     logEvent(level_1, "clearPayments()");
-    var removedPayments : [SubAccount] = [];
+    var removedPayments : [T.SubAccount] = [];
     for (p in payments.vals()) {
-      let response : ICPTs = await LEDGER_CANISTER.account_balance_dfx({
+      let response : T.ICPTs = await T.LEDGER_CANISTER.account_balance_dfx({
         account = AID.fromPrincipal(seller, ?p);
       });
       if (response.e8s < 10_000) {
@@ -1070,13 +1023,13 @@ actor class Canister() = this {
     };
     switch (_payments.get(seller)) {
       case (?sellerPayments) {
-        var newPayments : [SubAccount] = [];
+        var newPayments : [T.SubAccount] = [];
         for (p in sellerPayments.vals()) {
           if (
             Option.isNull(
               Array.find(
                 removedPayments,
-                func(a : SubAccount) : Bool {
+                func(a : T.SubAccount) : Bool {
                   Array.equal(a, p, Nat8.equal);
                 },
               )
@@ -1144,7 +1097,7 @@ actor class Canister() = this {
         switch (_getTokenData(tokenid)) {
           case (?metadata) {
             let assetid : Nat = Nat32.toNat(_blobToNat32(metadata));
-            let asset : Asset = _assets[assetid];
+            let asset : T.Asset = _assets[assetid];
             switch (_getParam(request.url, "type")) {
               case (?t) {
                 if (t == "thumbnail") {
@@ -1174,7 +1127,7 @@ actor class Canister() = this {
       case (?atext) {
         switch (_getAssetId(atext)) {
           case (?assetid) {
-            let asset : Asset = _assets[assetid];
+            let asset : T.Asset = _assets[assetid];
             switch (_getParam(request.url, "type")) {
               case (?t) {
                 if (t == "thumbnail") {
@@ -1202,8 +1155,8 @@ actor class Canister() = this {
     };
 
     //Just show index
-    let t_transactions : [Transaction] = _transactionBuffer.toArray();
-    var soldValue : Nat = Nat64.toNat(Array.foldLeft<Transaction, Nat64>(t_transactions, 0, func(b : Nat64, a : Transaction) : Nat64 { b + a.price }));
+    let t_transactions : [T.Transaction] = _transactionBuffer.toArray();
+    var soldValue : Nat = Nat64.toNat(Array.foldLeft<T.Transaction, Nat64>(t_transactions, 0, func(b : Nat64, a : T.Transaction) : Nat64 { b + a.price }));
     var avg : Nat = if (t_transactions.size() > 0) {
       soldValue / t_transactions.size();
     } else {
@@ -1228,7 +1181,7 @@ actor class Canister() = this {
     switch (_getAssetId(token.key)) {
       case null return { body = Blob.fromArray([]); token = null };
       case (?assetid) {
-        let asset : Asset = _assets[assetid];
+        let asset : T.Asset = _assets[assetid];
         let res = _streamContent(token.key, token.index, asset.payload.data);
         return {
           body = res.0;
@@ -1248,7 +1201,7 @@ actor class Canister() = this {
     };
     return null;
   };
-  private func _processFile(tokenid : TokenIdentifier, file : File) : HttpResponse {
+  private func _processFile(tokenid : T.TokenIdentifier, file : T.File) : HttpResponse {
     if (file.data.size() > 1) {
       let (payload, token) = _streamContent(tokenid, 0, file.data);
       return {
@@ -1353,16 +1306,25 @@ actor class Canister() = this {
   };
 
   //Private
-  func _removeTokenFromUser(tindex : TokenIndex) : () {
-    let owner : ?AccountIdentifier = _getBearer(tindex);
+  func _removeTokenFromUser(tindex : T.TokenIndex) : () {
+    let owner : ?T.AccountIdentifier = _getBearer(tindex);
     _registry.delete(tindex);
     switch (owner) {
       case (?o) _removeFromUserTokens(tindex, o);
       case (_) {};
     };
   };
-  func _transferTokenToUser(tindex : TokenIndex, receiver : AccountIdentifier) : () {
-    let owner : ?AccountIdentifier = _getBearer(tindex);
+
+  // public shared ({caller}) func correction() : async () {
+  //   assert Principal.equal(caller, _minter);
+  //   let input : [Nat32] = [20,21,22,23,24];
+  //   for ( t in input.vals() ){
+  //     _transferTokenToUser(t, "8297a2890fd4ec8ef403d062846425f412fa9db33d1f5f219fb9048445408221");
+  //   }
+  // };
+
+  func _transferTokenToUser(tindex : T.TokenIndex, receiver : T.AccountIdentifier) : () {
+    let owner : ?T.AccountIdentifier = _getBearer(tindex);
     _registry.put(tindex, receiver);
     switch (owner) {
       case (?o) _removeFromUserTokens(tindex, o);
@@ -1370,23 +1332,23 @@ actor class Canister() = this {
     };
     _addToUserTokens(tindex, receiver);
   };
-  func _removeFromUserTokens(tindex : TokenIndex, owner : AccountIdentifier) : () {
+  func _removeFromUserTokens(tindex : T.TokenIndex, owner : T.AccountIdentifier) : () {
     switch (_owners.get(owner)) {
-      case (?ownersTokens) _owners.put(owner, Array.filter(ownersTokens, func(a : TokenIndex) : Bool { (a != tindex) }));
+      case (?ownersTokens) _owners.put(owner, Array.filter(ownersTokens, func(a : T.TokenIndex) : Bool { (a != tindex) }));
       case (_) ();
     };
   };
-  func _addToUserTokens(tindex : TokenIndex, receiver : AccountIdentifier) : () {
-    let ownersTokensNew : [TokenIndex] = switch (_owners.get(receiver)) {
+  func _addToUserTokens(tindex : T.TokenIndex, receiver : T.AccountIdentifier) : () {
+    let ownersTokensNew : [T.TokenIndex] = switch (_owners.get(receiver)) {
       case (?ownersTokens) Array.append(ownersTokens, [tindex]);
       case (_) [tindex];
     };
     _owners.put(receiver, ownersTokensNew);
   };
-  func _getBearer(tindex : TokenIndex) : ?AccountIdentifier {
+  func _getBearer(tindex : T.TokenIndex) : ?T.AccountIdentifier {
     _registry.get(tindex);
   };
-  func _isLocked(token : TokenIndex) : Bool {
+  func _isLocked(token : T.TokenIndex) : Bool {
     switch (_tokenListing.get(token)) {
       case (?listing) {
         switch (listing.locked) {
@@ -1409,11 +1371,11 @@ actor class Canister() = this {
     debug_show (amt / 100000000) # "." # debug_show ((amt % 100000000) / 1000000) # " ICP";
   };
   public query func stats() : async (Nat64, Nat64, Nat64, Nat64, Nat, Nat, Nat) {
-    let t_transactions : [Transaction] = _transactionBuffer.toArray();
-    var res : (Nat64, Nat64, Nat64) = Array.foldLeft<Transaction, (Nat64, Nat64, Nat64)>(
+    let t_transactions : [T.Transaction] = _transactionBuffer.toArray();
+    var res : (Nat64, Nat64, Nat64) = Array.foldLeft<T.Transaction, (Nat64, Nat64, Nat64)>(
       t_transactions,
       (0, 0, 0),
-      func(b : (Nat64, Nat64, Nat64), a : Transaction) : (Nat64, Nat64, Nat64) {
+      func(b : (Nat64, Nat64, Nat64), a : T.Transaction) : (Nat64, Nat64, Nat64) {
         var total : Nat64 = b.0 + a.price;
         var high : Nat64 = b.1;
         var low : Nat64 = b.2;
@@ -1427,57 +1389,6 @@ actor class Canister() = this {
       if (floor == 0 or a.1.price < floor) floor := a.1.price;
     };
     (res.0, res.1, res.2, floor, _tokenListing.size(), _registry.size(), t_transactions.size());
-  };
-  public shared (msg) func transfer_bulk(dist : [(TokenIndex, AccountIdentifier)]) : async [(TokenIndex, AccountIdentifier)] {
-    canistergeekMonitor.collectMetrics();
-    logEvent(level_1, "transfer_bulk");
-    assert (msg.caller == _minter);
-    var ret : [(TokenIndex, AccountIdentifier)] = [];
-    let spender = AID.fromPrincipal(msg.caller, null);
-    for ((t, a) in dist.vals()) {
-      switch (_registry.get(t)) {
-        case (?token_owner) {
-          if (spender == token_owner) {
-            _transferTokenToUser(t, a);
-          } else {
-            ret := Array.append(ret, [(t, a)]);
-          };
-        };
-        case (_) {
-          ret := Array.append(ret, [(t, a)]);
-        };
-      };
-    };
-    ret;
-  };
-  public shared (msg) func list_bulk(dist : [(TokenIndex, Nat64)]) : async [(TokenIndex, Nat64)] {
-    canistergeekMonitor.collectMetrics();
-    logEvent(level_1, "list_bulk");
-    assert (msg.caller == _minter);
-    var ret : [(TokenIndex, Nat64)] = [];
-    let spender = AID.fromPrincipal(msg.caller, null);
-    for ((t, p) in dist.vals()) {
-      switch (_registry.get(t)) {
-        case (?token_owner) {
-          if (spender == token_owner) {
-            _tokenListing.put(
-              t,
-              {
-                seller = msg.caller;
-                price = p;
-                locked = null;
-              },
-            );
-          } else {
-            ret := Array.append(ret, [(t, p)]);
-          };
-        };
-        case (_) {
-          ret := Array.append(ret, [(t, p)]);
-        };
-      };
-    };
-    ret;
   };
 
 };

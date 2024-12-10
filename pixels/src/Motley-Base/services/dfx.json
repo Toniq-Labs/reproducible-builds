@@ -1,0 +1,46 @@
+{
+    "canisters": {
+      "Heartbeat": {
+        "main": "src/heartbeat/heartbeat.mo",
+        "type": "motoko"
+      },
+      "Fileshare": {
+        "main": "src/fileshare/Fileshare.mo",
+        "type": "motoko"
+      },
+      "Events": {
+        "main": "src/events/events.mo",
+        "type": "motoko"
+      },
+      "RandTest": {
+        "main": "src/rand.mo",
+        "type": "motoko"
+      },
+      "BlockDevice": {
+        "main": "src/fileshare/BlockDevice.mo",
+        "type": "motoko"
+      },
+      "MediaMgr": {
+        "main": "src/fileshare/MediaManager.mo",
+        "type": "motoko"
+      },
+      "Snapshot": {
+        "main": "src/snapshot/snapshot.mo",
+        "type": "motoko"
+      }
+    },
+    "defaults": {
+      "build": {
+        "args": "--compacting-gc",
+        "packtool": "vessel sources"
+      }
+    },
+    "dfx": "0.13.1",
+    "networks": {
+      "local": {
+        "bind": "127.0.0.1:8000",
+        "type": "ephemeral"
+      }
+    },
+    "version": 1
+}
