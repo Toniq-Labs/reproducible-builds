@@ -1,0 +1,175 @@
+type AccountIdentifier = text;
+type AccountIdentifier__1 = text;
+type Asset = record { id : nat32; name : text; ctype : text; canister : text };
+type AssetHandle = text;
+type Balance = nat;
+type BalanceRequest = record { token : TokenIdentifier; user : User };
+type BalanceResponse = variant { ok : Balance; err : CommonError__1 };
+type Balance__1 = nat;
+type BulkTransferRequest = record {
+  to : User;
+  notify : bool;
+  from : User;
+  memo : Memo;
+  subaccount : opt SubAccount;
+  tokens : vec TokenIdentifier;
+  amount : Balance;
+};
+type CommonError = variant { InvalidToken : TokenIdentifier; Other : text };
+type CommonError__1 = variant { InvalidToken : TokenIdentifier; Other : text };
+type Extension = text;
+type HeaderField = record { text; text };
+type HttpRequest = record {
+  url : text;
+  method : text;
+  body : vec nat8;
+  headers : vec HeaderField;
+};
+type HttpResponse = record {
+  body : vec nat8;
+  headers : vec HeaderField;
+  streaming_strategy : opt HttpStreamingStrategy;
+  status_code : nat16;
+};
+type HttpStreamingCallbackResponse = record {
+  token : opt HttpStreamingCallbackToken;
+  body : vec nat8;
+};
+type HttpStreamingCallbackToken = record {
+  key : text;
+  sha256 : opt vec nat8;
+  index : nat;
+  content_encoding : text;
+};
+type HttpStreamingStrategy = variant {
+  Callback : record {
+    token : HttpStreamingCallbackToken;
+    callback : func (HttpStreamingCallbackToken) -> (
+        HttpStreamingCallbackResponse,
+      ) query;
+  };
+};
+type ListRequest = record {
+  token : TokenIdentifier__1;
+  from_subaccount : opt SubAccount__1;
+  price : opt nat64;
+};
+type Listing = record { locked : opt Time; seller : principal; price : nat64 };
+type Memo = vec nat8;
+type Metadata = variant {
+  fungible : record {
+    decimals : nat8;
+    metadata : opt vec nat8;
+    name : text;
+    symbol : text;
+  };
+  nonfungible : record { metadata : opt vec nat8 };
+};
+type MoonWalker = service {
+  acceptCycles : () -> ();
+  addAsset : (AssetHandle, nat32, text, text, text) -> ();
+  addThumbnail : (AssetHandle, vec nat8) -> ();
+  adminKillHeartbeat : () -> ();
+  adminRefund : (text, AccountIdentifier__1, AccountIdentifier__1) -> (text);
+  adminStartHeartbeat : () -> ();
+  allPayments : () -> (vec record { principal; vec SubAccount__1 }) query;
+  allSettlements : () -> (vec record { TokenIndex; Settlement }) query;
+  assetTokenMap : () -> (vec record { AssetHandle; TokenIndex }) query;
+  assetsToTokens : (vec AssetHandle) -> (vec TokenIndex) query;
+  availableCycles : () -> (nat) query;
+  balance : (BalanceRequest) -> (BalanceResponse) query;
+  bearer : (TokenIdentifier__1) -> (Result_5) query;
+  clearPayments : (principal, vec SubAccount__1) -> ();
+  cronCapEvents : () -> ();
+  cronDisbursements : () -> ();
+  cronSettlements : () -> ();
+  details : (TokenIdentifier__1) -> (Result_6) query;
+  extensions : () -> (vec Extension) query;
+  getAssets : () -> (vec record { AssetHandle; Asset }) query;
+  getMinter : () -> (principal) query;
+  getNextSubAccount : () -> (nat) query;
+  getRegistry : () -> (vec record { TokenIndex; AccountIdentifier__1 }) query;
+  getThumbs : () -> (vec AssetHandle) query;
+  getTokens : () -> (vec record { TokenIndex; Metadata }) query;
+  get_royalty_address : () -> (text) query;
+  heartbeat_external : () -> ();
+  heartbeat_isRunning : () -> (bool) query;
+  heartbeat_pending : () -> (vec record { text; nat }) query;
+  historicExport : () -> (bool);
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  initCap : () -> ();
+  list : (ListRequest) -> (Result_3);
+  listings : () -> (vec record { TokenIndex; Listing; Metadata }) query;
+  lock : (TokenIdentifier__1, nat64, AccountIdentifier__1, SubAccount__1) -> (
+      Result_5,
+    );
+  metadata : (TokenIdentifier__1) -> (Result_4) query;
+  payments : () -> (opt vec SubAccount__1) query;
+  setMinter : (principal) -> ();
+  settle : (TokenIdentifier__1) -> (Result_3);
+  settlements : () -> (
+      vec record { TokenIndex; AccountIdentifier__1; nat64 },
+    ) query;
+  stats : () -> (nat64, nat64, nat64, nat64, nat, nat, nat) query;
+  supply : (TokenIdentifier__1) -> (Result_2) query;
+  toAddress : (text, nat) -> (AccountIdentifier__1) query;
+  tokens : (AccountIdentifier__1) -> (Result_1) query;
+  tokens_ext : (AccountIdentifier__1) -> (Result) query;
+  transactions : () -> (vec Transaction) query;
+  transfer : (TransferRequest) -> (TransferResponse);
+  transferBulk : (BulkTransferRequest) -> (TransferResponse);
+};
+type Result = variant {
+  ok : vec record { TokenIndex; opt Listing; opt vec nat8 };
+  err : CommonError;
+};
+type Result_1 = variant { ok : vec TokenIndex; err : CommonError };
+type Result_2 = variant { ok : Balance__1; err : CommonError };
+type Result_3 = variant { ok; err : CommonError };
+type Result_4 = variant { ok : Metadata; err : CommonError };
+type Result_5 = variant { ok : AccountIdentifier__1; err : CommonError };
+type Result_6 = variant {
+  ok : record { AccountIdentifier__1; opt Listing };
+  err : CommonError;
+};
+type Settlement = record {
+  subaccount : SubAccount__1;
+  seller : principal;
+  buyer : AccountIdentifier__1;
+  price : nat64;
+};
+type SubAccount = vec nat8;
+type SubAccount__1 = vec nat8;
+type Time = int;
+type TokenIdentifier = text;
+type TokenIdentifier__1 = text;
+type TokenIndex = nat32;
+type Transaction = record {
+  token : TokenIdentifier__1;
+  time : Time;
+  seller : principal;
+  buyer : AccountIdentifier__1;
+  price : nat64;
+};
+type TransferRequest = record {
+  to : User;
+  token : TokenIdentifier;
+  notify : bool;
+  from : User;
+  memo : Memo;
+  subaccount : opt SubAccount;
+  amount : Balance;
+};
+type TransferResponse = variant {
+  ok : Balance;
+  err : variant {
+    CannotNotify : AccountIdentifier;
+    InsufficientBalance;
+    InvalidToken : TokenIdentifier;
+    Rejected;
+    Unauthorized : AccountIdentifier;
+    Other : text;
+  };
+};
+type User = variant { "principal" : principal; address : AccountIdentifier };
+service : MoonWalker
